@@ -1,4 +1,62 @@
-﻿function GetDiscoverySummaryFile
+﻿
+Function Get-PerformanceCounterLocalName
+{
+  param
+  (
+    [UInt32]
+    $ID,
+ 
+    $ComputerName = $env:COMPUTERNAME
+  )
+ 
+  $code = '[DllImport("pdh.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern UInt32 PdhLookupPerfNameByIndex(string szMachineName, uint dwNameIndex, System.Text.StringBuilder szNameBuffer, ref uint pcchNameBufferSize);'
+ 
+  $Buffer = New-Object System.Text.StringBuilder(1024)
+  [UInt32]$BufferSize = $Buffer.Capacity
+ 
+  $t = Add-Type -MemberDefinition $code -PassThru -Name PerfCounter -Namespace Utility
+  $rv = $t::PdhLookupPerfNameByIndex($ComputerName, $id, $Buffer, [Ref]$BufferSize)
+ 
+  if ($rv -eq 0)
+  {
+    $Buffer.ToString().Substring(0, $BufferSize-1)
+  }
+  else
+  {
+    Throw 'Get-PerformanceCounterLocalName : Unable to retrieve localized name. Check computer name and performance counter ID.'
+  }
+}
+
+
+function Get-PerformanceCounterID
+{
+    param
+    (
+        [Parameter(Mandatory=$true)]
+        $Name
+    )
+ 
+    if ($script:perfHash -eq $null)
+    {
+        #Write-Progress -Activity 'Retrieving PerfIDs' -Status 'Working'
+ 
+        $key = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\CurrentLanguage'
+        $counters = (Get-ItemProperty -Path $key -Name Counter).Counter
+        $script:perfHash = @{}
+        $all = $counters.Count
+ 
+        for($i = 0; $i -lt $all; $i+=2)
+        {
+           Write-Progress -Activity 'Retrieving PerfIDs' -Status 'Working' -PercentComplete ($i*100/$all)
+           $script:perfHash.$($counters[$i+1]) = $counters[$i]
+        }
+    }
+ 
+    $script:perfHash.$Name
+}
+
+
+function GetDiscoverySummaryFile
 {
 
 # Location of summary.txt depends on SQL version
@@ -92,6 +150,8 @@ function XymonSend($msg, $servers)
 	$outputbuffer
 }
 
+
+
 function GetSqlInfo ([string] $SqlInstance)
 {
 
@@ -126,26 +186,21 @@ return $SqlInfo
 }
 
 
-Function Get-SQLInstance {  
+Function Get-SQLInstance {  
     <#
         .SYNOPSIS
             Retrieves SQL server information from a local or remote servers.
-
         .DESCRIPTION
             Retrieves SQL server information from a local or remote servers. Pulls all 
             instances from a SQL server and detects if in a cluster or not.
-
         .PARAMETER Computername
             Local or remote systems to query for SQL information.
-
         .NOTES
             Name: Get-SQLInstance
             Author: Boe Prox
             DateCreated: 07 SEPT 2013
-
         .EXAMPLE
             Get-SQLInstance -Computername DC1
-
             SQLInstance   : MSSQLSERVER
             Version       : 10.0.1600.22
             isCluster     : False
@@ -156,7 +211,6 @@ Function Get-SQLInstance {  
             ClusterName   : 
             ClusterNodes  : {}
             Caption       : SQL Server 2008
-
             SQLInstance   : MINASTIRITH
             Version       : 10.0.1600.22
             isCluster     : False
@@ -167,12 +221,11 @@ Function Get-SQLInstance {  
             ClusterName   : 
             ClusterNodes  : {}
             Caption       : SQL Server 2008
-
             Description
             -----------
             Retrieves the SQL information from DC1
     #>
-    [cmdletbinding()] 
+    [cmdletbinding()] 
     Param (
         [parameter(ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
         [Alias('__Server','DNSHostName','IPAddress')]
@@ -288,9 +341,7 @@ Get-SQLInstance -Verbose | ForEach {
         $_ 
     } 
 }
-
 # Result of Get-SQLInstance function
-
 isCluster     : False
 ClusterNodes  : {}
 ClusterName   :
@@ -301,8 +352,6 @@ Version       : 10.50.2500.0
 Edition       : Enterprise Edition
 Caption       : SQL Server 2008 R2
 Computername  : SFRFIDCSQLA007P
-
-
 isCluster     : True
 ClusterNodes  : {SFRFIDCPRDB004P}
 ClusterName   : SFRFIDCPRNC115P
@@ -313,7 +362,6 @@ Version       : 11.2.5058.0
 Edition       : Standard Edition
 Caption       : SQL Server 2012
 Computername  : SFRFIDCPRDB003P
-
 #>
 
 $SqlServer = $(hostname)
@@ -324,7 +372,7 @@ $alertColour = 'green'
 
 $localInstances = @()
 
-Get-SQLInstance
+ Get-SQLInstance
 
 $localInstances = Get-SQLInstance
 
@@ -354,8 +402,15 @@ foreach ($currInstance in $localInstances) {
     
     "Current instance name: " + $serverName
     "Xymon name: " + $XymonClientName
+    $server = New-Object -typeName Microsoft.SqlServer.Management.Smo.Server -argumentList "$serverName"
+
+    GetSqlInfo 
     }
 
-$server = New-Object -typeName Microsoft.SqlServer.Management.Smo.Server -argumentList "$serverName"
 
-GetSqlInfo
+
+
+
+
+GetSqlInfo 
+

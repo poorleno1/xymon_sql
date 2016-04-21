@@ -1,0 +1,4 @@
+#This file is used to define what counter shall be monitored
+#File Format:
+#CounterType;SQL_MainType(valid for SQL);CounterName;interval(optional)in seconds
+SQL;Memory Manager;Target Server Memory (KB)
