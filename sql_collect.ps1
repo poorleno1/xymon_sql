@@ -1,4 +1,97 @@
-﻿
+﻿function GetDiscoverySummaryFile
+{
+
+# Location of summary.txt depends on SQL version
+# SQL 2008 R2 - "C:\Program Files\Microsoft SQL Server\100\Setup Bootstrap\Log\Summary.txt"
+# "C:\Program Files\Microsoft SQL Server\100\Setup Bootstrap\SQLServer2008R2\setup.exe" /Action=RunDiscovery /q
+
+# SQL 2012 - "C:\Program Files\Microsoft SQL Server\110\Setup Bootstrap\Log\Summary.txt"
+# "C:\Program Files\Microsoft SQL Server\110\Setup Bootstrap\SQLServer2012\setup.exe" /Action=RunDiscovery /q
+
+# SQL 2014 - "C:\Program Files\Microsoft SQL Server\120\Setup Bootstrap\Log\Summary.txt"
+# "C:\Program Files\Microsoft SQL Server\120\Setup Bootstrap\SQLServer2014\setup.exe" /Action=RunDiscovery /q
+
+    $SQLSummaryFile = ""
+
+    If ((Test-Path -Path "C:\Program Files\Microsoft SQL Server\100\Setup Bootstrap\SQLServer2008R2\setup.exe") -eq $true)
+    {
+        $SQLSummaryFile = Get-Content "C:\Program Files\Microsoft SQL Server\100\Setup Bootstrap\Log\Summary.txt"
+    }
+    elseif ((Test-Path -Path "C:\Program Files\Microsoft SQL Server\110\Setup Bootstrap\SQLServer2012\setup.exe") -eq $true)
+    {
+        $SQLSummaryFile = Get-Content "C:\Program Files\Microsoft SQL Server\110\Setup Bootstrap\Log\Summary.txt"
+    }
+    elseif ((Test-Path -Path "C:\Program Files\Microsoft SQL Server\120\Setup Bootstrap\SQLServer2014\setup.exe") -eq $true)
+    {
+        $SQLSummaryFile = Get-Content "C:\Program Files\Microsoft SQL Server\120\Setup Bootstrap\Log\Summary.txt"
+    }
+
+    return $SQLSummaryFile
+
+}
+
+
+# Communicate with Xymon server
+function XymonSend($msg, $servers)
+{
+	$saveresponse = 1	# Only on the first server
+	$outputbuffer = ""
+	$ASCIIEncoder = New-Object System.Text.ASCIIEncoding
+
+	foreach ($srv in $servers) {
+		$srvparams = $srv.Split(":")
+		# allow for server names that may resolve to multiple A records
+		$srvIPs = & {
+			$local:ErrorActionPreference = "SilentlyContinue"
+			$srvparams[0] | %{[system.net.dns]::GetHostAddresses($_)} | %{ $_.IPAddressToString}
+		}
+		if ($srvIPs -eq $null) { # no IP addresses could be looked up
+			Write-Error -Category InvalidData ("No IP addresses could be found for host: " + $srvparams[0])
+		} else {
+			if ($srvparams.Count -gt 1) {
+				$srvport = $srvparams[1]
+			} else {
+				$srvport = 1984
+			}
+			foreach ($srvip in $srvIPs) {
+
+				$saveerractpref = $ErrorActionPreference
+				$ErrorActionPreference = "SilentlyContinue"
+				$socket = new-object System.Net.Sockets.TcpClient
+				$socket.Connect($srvip, $srvport)
+				$ErrorActionPreference = $saveerractpref
+				if(! $? -or ! $socket.Connected ) {
+					$errmsg = $Error[0].Exception
+					Write-Error -Category OpenError "Cannot connect to host $srv ($srvip) : $errmsg"
+					continue;
+				}
+				$socket.sendTimeout = 500
+				$socket.NoDelay = $true
+
+				$stream = $socket.GetStream()
+				
+				$sent = 0
+				foreach ($line in $msg) {
+					# Convert data to ASCII instead of UTF, and to Unix line breaks
+					$sent += $socket.Client.Send($ASCIIEncoder.GetBytes($line.Replace("`r","") + "`n"))
+				}
+
+				if ($saveresponse-- -gt 0) {
+					$socket.Client.Shutdown(1)	# Signal to Xymon we're done writing.
+
+					$s = new-object system.io.StreamReader($stream,"ASCII")
+
+					start-sleep -m 200  # wait for data to buffer
+					$outputBuffer = $s.ReadToEnd()
+				}
+
+				$socket.Close()
+			}
+		}
+	}
+	$outputbuffer
+}
+
 function GetSqlInfo ([string] $SqlInstance)
 {
 
