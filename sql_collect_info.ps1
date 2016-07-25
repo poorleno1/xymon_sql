@@ -221,7 +221,7 @@ function XymonSend($msg, $servers)
 
 # Main code
 $SqlServer = $(hostname)
-$xymon_server = "xymon.statoilfuelretail.com"
+$xymon_server = "192.168.33.10"
 $alertColour = 'green'
 
 # get instances based on services
