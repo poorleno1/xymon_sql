@@ -18,6 +18,15 @@
 # Added by: jarekole
 # Added function GetDiscoverySummaryFile to read SQL discovery information
 
+# Last update: 25.07.2016
+# Added by: jarekole
+# Added an optional parameter - main server
+
+ param (
+    [string]$xymon_server = "xymon.statoilfuelretail.com"
+ )
+
+
 # For testing = 0.
 $XymonReady = 1
 
@@ -221,7 +230,6 @@ function XymonSend($msg, $servers)
 
 # Main code
 $SqlServer = $(hostname)
-$xymon_server = "192.168.33.10"
 $alertColour = 'green'
 
 # get instances based on services
