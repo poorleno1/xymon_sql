@@ -283,7 +283,11 @@ foreach ($currInstance in $localInstances) {
     if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
     #Get SQL instance Buffer cache hit ratio
-    $sqlinfo = GetCounterValue "Buffer cache hit ratio" | Out-String
+    $sqlinfo_a =  GetCounterValue "Buffer cache hit ratio"
+    $sqlinfo_b = GetCounterValue "Buffer cache hit ratio base"
+    
+    $sqlinfo = 100*$sqlinfo_a / $sqlinfo_b
+
 
     $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Buffer cache hit ratio</h2> "  + "`n" + 'BufferCacheHR: {0}' -f $sqlinfo)
     	 
