@@ -296,6 +296,54 @@ foreach ($currInstance in $localInstances) {
 
     if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
+
+
+
+    #Get SQL instance Target Server Memory (KB)
+    $sqlinfo_a = GetCounterValue "Target Server Memory (KB)"
+    $sqlinfo_a = $sqlinfo_a / 1024 | Out-string
+    $sqlinfo_b = GetCounterValue "Total Server Memory (KB)"
+    $sqlinfo_b = $sqlinfo_b / 1024
+
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Server Memory (MB)</h2> "  + "`n" + 'TargetServerMemory: {0}' -f $sqlinfo_a + "`n" + 'TotalServerMemory: {0}' -f $sqlinfo_b)
+    	 
+    $output = ('status {0}.ServerMemory {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+
+
+    #Get SQL instance Page life expectancy
+    $sqlinfo = GetCounterValue "Page life expectancy" | Out-String
+
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Page life expectancy</h2> "  + "`n" + 'PageLifeExpectancy: {0}' -f $sqlinfo)
+    	 
+    $output = ('status {0}.PageLifeExpectancy {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+
+
+    #Get SQL instance User Connections
+    $sqlinfo = GetCounterValue "User Connections" | Out-String
+
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance User Connections</h2> "  + "`n" + 'UserConnections: {0}' -f $sqlinfo)
+    	 
+    $output = ('status {0}.UserConnections {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+
+
+    #Get SQL instance Connection Memory (KB)
+    $sqlinfo = GetCounterValue "Connection Memory (KB)" | Out-String
+
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Connection Memory (KB)</h2> "  + "`n" + 'ConnectionMemory: {0}' -f $sqlinfo)
+    	 
+    $output = ('status {0}.ConnectionMemory {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+
+
+
+
     #Get SQL instance Database Pages
     $sqlinfo = GetCounterValue "Database Pages" | Out-String
 
@@ -316,22 +364,22 @@ foreach ($currInstance in $localInstances) {
     if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
     #Get SQL instance Free pages
-    $sqlinfo = GetCounterValue "Free pages" | Out-String
+    #$sqlinfo = GetCounterValue "Free pages" | Out-String
 
-    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Free pages</h2> "  + "`n" + 'FreePages: {0}' -f $sqlinfo)
+    #$outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Free pages</h2> "  + "`n" + 'FreePages: {0}' -f $sqlinfo)
     	 
-    $output = ('status {0}.FreePages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
-    "Output string for Xymon: " + $output
-    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+    #$output = ('status {0}.FreePages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    #"Output string for Xymon: " + $output
+    #if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
     #Get SQL instance Stolen pages
-    $sqlinfo = GetCounterValue "Stolen pages" | Out-String
+    #$sqlinfo = GetCounterValue "Stolen pages" | Out-String
 
-    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Stolen pages</h2> "  + "`n" + 'StolenPages: {0}' -f $sqlinfo)
+    #$outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Stolen pages</h2> "  + "`n" + 'StolenPages: {0}' -f $sqlinfo)
     	 
-    $output = ('status {0}.StolenPages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
-    "Output string for Xymon: " + $output
-    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+    #$output = ('status {0}.StolenPages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    #"Output string for Xymon: " + $output
+    #if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
     #Get Memory Grants Pending
     $sqlinfo = GetCounterValue "Memory Grants Pending" | Out-String
