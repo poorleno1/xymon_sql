@@ -87,8 +87,8 @@ $alertColour = 'green'
     "\Memory\Pages Output/sec","\Memory\Page Reads/sec",`
     "\Memory\Page Writes/sec","\Memory\Pool Nonpaged Bytes",`
     "\Memory\Pool paged bytes","\Memory\Committed Bytes",`
-    "\Memory\% Committed Bytes in Use","\System\Processor Queue Length”,`
-    "\Paging file(*)\% Usage","\memory\available mbytes”
+    "\Memory\% Committed Bytes in Use","\System\Processor Queue Length",`
+    "\Paging file(*)\% Usage","\memory\available mbytes"
     $Vals = Get-Counter -counter $CtrsList | Select-Object -ExpandProperty CounterSamples | Select-Object path,CookedValue 
     
     $counterinfo = $vals[0].CookedValue - $vals[1].CookedValue
