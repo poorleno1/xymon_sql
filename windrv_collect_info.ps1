@@ -102,7 +102,7 @@ foreach ($val in $vals)
   $outputtext = ((get-date -format G) + "`n" + "<h2>PhysicalDisk</h2> "  + "`n" + $out)
     $output = ('status {0}.disk2 {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
     "Output string for Xymon: " + $output
-    #if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
 
 
