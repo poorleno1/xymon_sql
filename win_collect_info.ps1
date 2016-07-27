@@ -83,7 +83,7 @@ $alertColour = 'green'
 
 
     #Get Memory - Pages Faults/sec, Pages Input/sec (Hard Page Faults) and Page Faults/sec - Pages Input/sec (Soft Page Faults)
-    $CtrsList = "\Memory\Page Faults/sec","\Memory\Pages Input/sec","\Memory\Pages Output/sec","\Memory\Page Reads/sec","\Memory\Page Writes/sec","\Memory\Pool Nonpaged Bytes","\Memory\Pool paged bytes","\Memory\Committed Bytes","\Memory\% Committed Bytes in Use","\System\Processor Queue Length”,"\Paging file(*)\% Usage","\memory\available mbytes”
+    $CtrsList = "\Memory\Page Faults/sec","\Memory\Pages Input/sec","\Memory\Pages Output/sec","\Memory\Page Reads/sec","\Memory\Page Writes/sec","\Memory\Pool Nonpaged Bytes","\Memory\Pool paged bytes","\Memory\Committed Bytes","\Memory\% Committed Bytes in Use","\System\Processor Queue Length”,"\Paging file(*)\% Usage","\memory\available mbytes"
     $Vals = Get-Counter -counter $CtrsList | Select-Object -ExpandProperty CounterSamples | Select-Object path,CookedValue 
     
     $counterinfo = $vals[0].CookedValue - $vals[1].CookedValue
