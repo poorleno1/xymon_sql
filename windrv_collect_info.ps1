@@ -88,12 +88,19 @@ $TextInfo = (Get-Culture).TextInfo
 
 foreach ($val in $vals)
 {
-    #$Val.Path.Split("\")[3].Replace("physicaldisk","").Replace("(","").Replace(")","").Replace(" ","_")
+   #$Val.Path.Split("\")[3].Replace("physicaldisk","").Replace("(","").Replace(")","").Replace(" ","_")
+    if ($val.Path.Contains("_total"))
+    {
+        #Skipping Total
+    }
+    else
+    {
     $va= $Val.Path.Split("\")[4].Replace(".","").Replace("/"," ")
     $counterinfo = $TextInfo.ToTitleCase($va).Replace(" ","") +"_"+ $Val.Path.Split("\")[3].Replace("physicaldisk","").Replace("(","").Replace(")","").Replace(" ","_").Replace(":","")
     $countervalue = $val.CookedValue
 
     $out = $out + "`n" + $counterinfo + ': {0}' -f $countervalue
+    }
 
 }
 
