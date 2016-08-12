@@ -93,10 +93,12 @@ $alertColour = 'green'
     
     $counterinfo = $vals[0].CookedValue - $vals[1].CookedValue
     $outputtext = ((get-date -format G) + "`n" + `
-    "<h2>Memory - Page Faults/sec (sum of soft and hard page faults)</h2> "  + "`n" +`
+    #"<h2>Memory - Page Faults/sec (sum of soft and hard page faults)</h2> "  + "`n" +`
     "<h2>Memory - (Hard Page Faults) Page Input/sec</h2> "  + "`n" + `
-    "<h2>Memory - (Soft Page Faults) Page Faults/sec - Pages Input/sec </h2> "  + "`n" `
-     + 'PageFaults: {0}' -f $vals[0].CookedValue + "`n" + 'HardPageFaults: {0}' -f $vals[1].CookedValue + "`n" + 'SoftPageFaults: {0}' -f $counterinfo)
+    "<h2>Memory - (Soft Page Faults) Page Faults/sec - Pages Input/sec </h2> "  + "`n" ` +
+     #'PageFaults: {0}' -f $vals[0].CookedValue + "`n" + 
+     'HardPageFaults: {0}' -f $vals[1].CookedValue + "`n" + 
+     'SoftPageFaults: {0}' -f $counterinfo)
     $output = ('status {0}.PFA {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
     "Output string for Xymon: " + $output
     if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
