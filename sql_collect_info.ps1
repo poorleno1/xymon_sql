@@ -314,8 +314,15 @@ foreach ($currInstance in $localInstances) {
 
     #Get SQL instance Page life expectancy
     $sqlinfo = GetCounterValue "Page life expectancy" | Out-String
+    
 
-    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Page life expectancy</h2> "  + "`n" + 'PageLifeExpectancy: {0}' -f $sqlinfo)
+    $sqlinfoDBPG = GetCounterValue "Database Pages" 
+    $sqlinfoDBPG = 300*($sqlinfoDBPG*8/(1024*1024))
+    
+
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Page life expectancy</h2> "  + "`n" + 'PageLifeExpectancy: {0}' -f $sqlinfo + "`n" + 'PageLifeExpectancyVal {0}' -f $sqlinfoDBPG)
+
+
     	 
     $output = ('status {0}.PageLifeExpectancy {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
     "Output string for Xymon: " + $output
