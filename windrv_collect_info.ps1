@@ -104,8 +104,18 @@ foreach ($val in $vals)
     $countervalue = $val.CookedValue
     switch ($countswc)
     {
-        "avg. disk sec/read" {$out_latency = $out_latency + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"}
-        "avg. disk sec/write" {$out_latency = $out_latency + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"}
+        "avg. disk sec/read" 
+        {
+        $countervalue = $val.CookedValue | Out-String
+        $countervalue = $countervalue.Replace(",",".")
+        $out_latency = $out_latency + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"
+        }
+        "avg. disk sec/write" 
+        {
+        $countervalue = $val.CookedValue | Out-String
+        $countervalue = $countervalue.Replace(",",".")
+        $out_latency = $out_latency + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"
+        }
         "disk reads/sec" {$out_iops = $out_iops + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"}
         "disk writes/sec" {$out_iops = $out_iops + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"}
         "disk read bytes/sec" 
