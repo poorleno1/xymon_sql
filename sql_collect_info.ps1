@@ -24,6 +24,7 @@
 
 #Last update: 28.10.2016
 # Added function Get-SQLInstance - used to discover instances, especially on cluster.
+# Added information about date when backup was taken
 
  param (
     [string]$xymon_server = "xymon.statoilfuelretail.com"
@@ -798,6 +799,7 @@ foreach ($currInstance in $localInstances) {
         "Output string for Xymon: " + $output
         if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
+		<#
         $model = $db.recoverymodel
         if ($model -eq 1)
         {
@@ -811,6 +813,26 @@ foreach ($currInstance in $localInstances) {
         {
         $modelname = "Simple"
         }
+		#>
+		
+		#Get database backup information
+		
+		$model = $db.recoverymodel
+		$LastBackupDate = $db.LastBackupDate
+		$LastDifferentialBackupDate = $db.LastDifferentialBackupDate
+		$LastLogBackupDate = $db.LastLogBackupDate
+		
+		
+		
+		
+		
+		$outputtext = ((get-date -format G) + "`n" + "<h2>DB Backup information</h2> " + "`n" + 'RecoveryModel: {0}' -f $model + "`n" + 'LastBackupDate: {0}' -f $db.LastBackupDate + "`n" + 'LastDifferentialBackupDate: {0}' -f $db.LastDifferentialBackupDate+ "`n" + 'LastLogBackupDate: {0}' -f $db.LastLogBackupDate)
+
+        $output = ('status {0}.Backup {1} {2}' -f $XymonClientNameDB, $alertColour, $outputtext)
+        "Output string for Xymon: " + $output
+        if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+		
+		
     }
 
 }
