@@ -80,7 +80,7 @@ $alertColour = 'green'
 
 
 
-$CtrsList = "\PhysicalDisk(*)\Avg. Disk sec/Read","\PhysicalDisk(*)\Avg. Disk sec/Write","\PhysicalDisk(*)\Disk Reads/sec","\PhysicalDisk(*)\Disk Writes/sec"
+$CtrsList = "\PhysicalDisk(*)\Avg. Disk sec/Read","\PhysicalDisk(*)\Avg. Disk sec/Write","\PhysicalDisk(*)\Disk Reads/sec","\PhysicalDisk(*)\Disk Writes/sec","\Physicaldisk(*)\Disk Read Bytes/sec","\Physicaldisk(*)\Disk Write Bytes/sec"
 $Vals = Get-Counter -counter $CtrsList | Select-Object -ExpandProperty CounterSamples | Select-Object path,CookedValue 
 
 $TextInfo = (Get-Culture).TextInfo
@@ -88,19 +88,74 @@ $TextInfo = (Get-Culture).TextInfo
 
 foreach ($val in $vals)
 {
-    #$Val.Path.Split("\")[3].Replace("physicaldisk","").Replace("(","").Replace(")","").Replace(" ","_")
+   #$Val.Path.Split("\")[3].Replace("physicaldisk","").Replace("(","").Replace(")","").Replace(" ","_")
+    if ($val.Path.Contains("_total"))
+    {
+        #Skipping Total
+    }
+    else
+    {
     $va= $Val.Path.Split("\")[4].Replace(".","").Replace("/"," ")
     $counterinfo = $TextInfo.ToTitleCase($va).Replace(" ","") +"_"+ $Val.Path.Split("\")[3].Replace("physicaldisk","").Replace("(","").Replace(")","").Replace(" ","_").Replace(":","")
-    $countervalue = $val.CookedValue
 
-    $out = $out + "`n" + $counterinfo + ': {0}' -f $countervalue
+    $countswc=$val.Path.Split("\")[-1]
+
+    #Write-Host $countswc
+    $countervalue = $val.CookedValue
+    switch ($countswc)
+    {
+        "avg. disk sec/read" 
+        {
+        $countervalue = $val.CookedValue | Out-String
+        $countervalue = $countervalue.Replace(",",".")
+        $out_latency = $out_latency + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"
+        }
+        "avg. disk sec/write" 
+        {
+        $countervalue = $val.CookedValue | Out-String
+        $countervalue = $countervalue.Replace(",",".")
+        $out_latency = $out_latency + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"
+        }
+        "disk reads/sec" {$out_iops = $out_iops + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"}
+        "disk writes/sec" {$out_iops = $out_iops + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"}
+        "disk read bytes/sec" 
+        {
+        $countervalue = $val.CookedValue/(1024*1024)
+        $out_band = $out_band + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"
+        }
+        "disk write bytes/sec" 
+        {
+        $countervalue = $val.CookedValue/(1024*1024)
+        $out_band = $out_band + "`n" + $counterinfo + ': {0}' -f $countervalue + "`n"
+        }
+        Default {}
+    }
+
+    
+
+    #$out = $out + "`n" + $counterinfo + ': {0}' -f $countervalue
+    }
 
 }
 
 
 
-  $outputtext = ((get-date -format G) + "`n" + "<h2>PhysicalDisk</h2> "  + "`n" + $out)
-    $output = ('status {0}.disk2 {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+
+
+
+  $outputtext = ((get-date -format G) + "`n" + "<h2>PhysicalDisk Latency</h2> "  + "`n" + $out_latency)
+    $output = ('status {0}.dlat {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+
+$outputtext = ((get-date -format G) + "`n" + "<h2>PhysicalDisk IOPS</h2> "  + "`n" + $out_iops)
+    $output = ('status {0}.diop {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+
+$outputtext = ((get-date -format G) + "`n" + "<h2>PhysicalDisk Bandwidth [MB/sec]</h2> "  + "`n" + $out_band)
+    $output = ('status {0}.dband {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
     "Output string for Xymon: " + $output
     if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
