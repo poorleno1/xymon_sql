@@ -88,14 +88,18 @@ $alertColour = 'green'
     "\Memory\Page Writes/sec","\Memory\Pool Nonpaged Bytes",`
     "\Memory\Pool paged bytes","\Memory\Committed Bytes",`
     "\Memory\% Committed Bytes in Use","\System\Processor Queue Length",`
-    "\Paging file(*)\% Usage","\memory\available mbytes"
+    "\Paging file(_total)\% Usage","\memory\available mbytes"
     $Vals = Get-Counter -counter $CtrsList | Select-Object -ExpandProperty CounterSamples | Select-Object path,CookedValue 
     
     $counterinfo = $vals[0].CookedValue - $vals[1].CookedValue
     $outputtext = ((get-date -format G) + "`n" + `
     #"<h2>Memory - Page Faults/sec (sum of soft and hard page faults)</h2> "  + "`n" +`
-    "<h2>Memory - (Hard Page Faults) Page Input/sec</h2> "  + "`n" + `
-    "<h2>Memory - (Soft Page Faults) Page Faults/sec - Pages Input/sec </h2> "  + "`n" +`
+    #"<h2>Memory - (Hard Page Faults) Page Input/sec</h2> "  + "`n" + `
+	#"<h2>Memory - (Soft Page Faults) Page Faults/sec - Pages Input/sec </h2> "  + "`n" +`
+	"<h2>Memory - Page File Activity</h2> "  + "`n" + `
+	"<h1>Memory - Hard Page Faults</h1> "  + "`n" + `
+	"<h1>Memory - Hard Page Faults</h1> "  + "`n" + `
+    "<h2>Memory - (Soft Page Faults)</h2> "  + "`n" +`
      #'PageFaults: {0}' -f $vals[0].CookedValue + "`n" + 
      'HardPageFaults: {0}' -f $vals[1].CookedValue + "`n" + 
      'SoftPageFaults: {0}' -f $counterinfo)
@@ -158,12 +162,13 @@ $alertColour = 'green'
     $PageFileSize = (gwmi Win32_PageFileUsage).AllocatedBaseSize
     $PageFileSizeUsage = $PageFileSize * $counterinfo/100
     $outputtext = ((get-date -format G) + "`n" +`
-    "<h2>Paging file\usage MB</h2> "  + "`n" + `
-    "<h2>Paging file size MB</h2> "  + "`n" + `
-    "<h2>Paging file\% usage</h2> "  + "`n" + `
+	"<h2>Paging file Usage</h2> "  + "`n" + `
+    "<h1>Paging file\usage MB</h1> "  + "`n" + `
+    "<h1>Paging file size MB</h1> "  + "`n" + `
+    "<h1>Paging file\% usage</h1> "  + "`n" + `
     'PagingFileUsage: {0}' -f $PageFileSizeUsage  + "`n" + `
     'PagingFileSize: {0}' -f $PageFileSize + "`n" + `
     'PagingPercentageFileSize - {0}' -f $counterinfo )
-    $output = ('status {0}.PF {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    $output = ('status {0}.PFU {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
     "Output string for Xymon: " + $output
     if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
