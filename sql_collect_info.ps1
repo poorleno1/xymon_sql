@@ -22,6 +22,9 @@
 # Added by: jarekole
 # Added an optional parameter - main server
 
+#Last update: 28.10.2016
+# Added function Get-SQLInstance - used to discover instances, especially on cluster.
+
  param (
     [string]$xymon_server = "xymon.statoilfuelretail.com"
  )
@@ -33,7 +36,7 @@ $XymonReady = 1
 function GetSqlInfo ([string] $SqlInstance)
 {
 
-    # $server = New-Object -typeName Microsoft.SqlServer.Management.Smo.Server -argumentList "$SqlInstance"
+    #$server = New-Object -typeName Microsoft.SqlServer.Management.Smo.Server -argumentList "$SqlInstance"
 
 	$SqlInfo = "" | Select Version,Edition,fullVer,majVer,minVer,Build,Arch,Level,Root,Instance
 	[string]$SqlInfo.fullVer = $server.information.VersionString.toString()
@@ -63,6 +66,195 @@ return $SqlInfo
 
 }
 
+Function Get-SQLInstance {  
+    <#
+        .SYNOPSIS
+            Retrieves SQL server information from a local or remote servers.
+
+        .DESCRIPTION
+            Retrieves SQL server information from a local or remote servers. Pulls all 
+            instances from a SQL server and detects if in a cluster or not.
+
+        .PARAMETER Computername
+            Local or remote systems to query for SQL information.
+
+        .NOTES
+            Name: Get-SQLInstance
+            Author: Boe Prox
+            DateCreated: 07 SEPT 2013
+
+        .EXAMPLE
+            Get-SQLInstance -Computername DC1
+
+            SQLInstance   : MSSQLSERVER
+            Version       : 10.0.1600.22
+            isCluster     : False
+            Computername  : DC1
+            FullName      : DC1
+            isClusterNode : False
+            Edition       : Enterprise Edition
+            ClusterName   : 
+            ClusterNodes  : {}
+            Caption       : SQL Server 2008
+
+            SQLInstance   : MINASTIRITH
+            Version       : 10.0.1600.22
+            isCluster     : False
+            Computername  : DC1
+            FullName      : DC1\MINASTIRITH
+            isClusterNode : False
+            Edition       : Enterprise Edition
+            ClusterName   : 
+            ClusterNodes  : {}
+            Caption       : SQL Server 2008
+
+            Description
+            -----------
+            Retrieves the SQL information from DC1
+    #>
+    [cmdletbinding()] 
+    Param (
+        [parameter(ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
+        [Alias('__Server','DNSHostName','IPAddress')]
+        [string[]]$ComputerName = $env:COMPUTERNAME
+    ) 
+    Process {
+        ForEach ($Computer in $Computername) {
+            $Computer = $computer -replace '(.*?)\..+','$1'
+            Write-Verbose ("Checking {0}" -f $Computer)
+            Try { 
+                $reg = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine', $Computer) 
+                $baseKeys = "SOFTWARE\\Microsoft\\Microsoft SQL Server",
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Microsoft SQL Server"
+                If ($reg.OpenSubKey($basekeys[0])) {
+                    $regPath = $basekeys[0]
+                } ElseIf ($reg.OpenSubKey($basekeys[1])) {
+                    $regPath = $basekeys[1]
+                } Else {
+                    Continue
+                }
+                $regKey= $reg.OpenSubKey("$regPath")
+                If ($regKey.GetSubKeyNames() -contains "Instance Names") {
+                    $regKey= $reg.OpenSubKey("$regpath\\Instance Names\\SQL" ) 
+                    $instances = @($regkey.GetValueNames())
+                } ElseIf ($regKey.GetValueNames() -contains 'InstalledInstances') {
+                    $isCluster = $False
+                    $instances = $regKey.GetValue('InstalledInstances')
+                } Else {
+                    Continue
+                }
+                If ($instances.count -gt 0) { 
+                    ForEach ($instance in $instances) {
+                        $nodes = New-Object System.Collections.Arraylist
+                        $clusterName = $Null
+                        $isCluster = $False
+                        $instanceValue = $regKey.GetValue($instance)
+                        $instanceReg = $reg.OpenSubKey("$regpath\\$instanceValue")
+                        If ($instanceReg.GetSubKeyNames() -contains "Cluster") {
+                            $isCluster = $True
+                            $instanceRegCluster = $instanceReg.OpenSubKey('Cluster')
+                            $clusterName = $instanceRegCluster.GetValue('ClusterName')
+                            $clusterReg = $reg.OpenSubKey("Cluster\\Nodes")                            
+                            $clusterReg.GetSubKeyNames() | ForEach {
+                                $null = $nodes.Add($clusterReg.OpenSubKey($_).GetValue('NodeName'))
+                            }
+                        }
+                        $instanceRegSetup = $instanceReg.OpenSubKey("Setup")
+                        Try {
+                            $edition = $instanceRegSetup.GetValue('Edition')
+                        } Catch {
+                            $edition = $Null
+                        }
+                        Try {
+                            $ErrorActionPreference = 'Stop'
+                            #Get from filename to determine version
+                            $servicesReg = $reg.OpenSubKey("SYSTEM\\CurrentControlSet\\Services")
+                            $serviceKey = $servicesReg.GetSubKeyNames() | Where {
+                                $_ -match "$instance"
+                            } | Select -First 1
+                            $service = $servicesReg.OpenSubKey($serviceKey).GetValue('ImagePath')
+                            $file = $service -replace '^.*(\w:\\.*\\sqlservr.exe).*','$1'
+                            $version = (Get-Item ("\\$Computer\$($file -replace ":","$")")).VersionInfo.ProductVersion
+                        } Catch {
+                            #Use potentially less accurate version from registry
+                            $Version = $instanceRegSetup.GetValue('Version')
+                        } Finally {
+                            $ErrorActionPreference = 'Continue'
+                        }
+                        New-Object PSObject -Property @{
+                            Computername = $Computer
+                            SQLInstance = $instance
+                            Edition = $edition
+                            Version = $version
+                            Caption = {Switch -Regex ($version) {
+                                "^14" {'SQL Server 2014';Break}
+                                "^11" {'SQL Server 2012';Break}
+                                "^10\.5" {'SQL Server 2008 R2';Break}
+                                "^10" {'SQL Server 2008';Break}
+                                "^9"  {'SQL Server 2005';Break}
+                                "^8"  {'SQL Server 2000';Break}
+                                Default {'Unknown'}
+                            }}.InvokeReturnAsIs()
+                            isCluster = $isCluster
+                            isClusterNode = ($nodes -contains $Computer)
+                            ClusterName = $clusterName
+                            ClusterNodes = ($nodes -ne $Computer)
+                            FullName = {
+                                If ($Instance -eq 'MSSQLSERVER') {
+                                    $Computer
+                                } Else {
+                                    "$($Computer)\$($instance)"
+                                }
+                            }.InvokeReturnAsIs()
+                        }
+                    }
+                }
+            } Catch { 
+                Write-Warning ("{0}: {1}" -f $Computer,$_.Exception.Message)
+            }  
+        }   
+    }
+}
+
+# Example for Get-SQLInstance function call
+<#
+Get-SQLInstance -Verbose | ForEach { 
+    If ($_.isClusterNode) { 
+        If (($list -notcontains $_.Clustername)) { 
+            Get-SQLInstance -ComputerName $_.ClusterName 
+            $list += ,$_.ClusterName 
+        } 
+    } Else { 
+        $_ 
+    } 
+}
+
+# Result of Get-SQLInstance function
+
+isCluster     : False
+ClusterNodes  : {}
+ClusterName   :
+FullName      : SFRFIDCSQLA007P
+isClusterNode : False
+SQLInstance   : MSSQLSERVER
+Version       : 10.50.2500.0
+Edition       : Enterprise Edition
+Caption       : SQL Server 2008 R2
+Computername  : SFRFIDCSQLA007P
+
+
+isCluster     : True
+ClusterNodes  : {SFRFIDCPRDB004P}
+ClusterName   : SFRFIDCPRNC115P
+FullName      : SFRFIDCPRDB003P\PNPRODLV
+isClusterNode : True
+SQLInstance   : PNPRODLV
+Version       : 11.2.5058.0
+Edition       : Standard Edition
+Caption       : SQL Server 2012
+Computername  : SFRFIDCPRDB003P
+
+#>
 function GetDiscoverySummaryFile
 {
 
@@ -236,6 +428,7 @@ $alertColour = 'green'
 
 $localInstances = @()
 
+<#
 [array]$captions = gwmi win32_service -computerName $SqlServer | ?{$_.Name -match "mssql*" -and $_.PathName -match "sqlservr.exe"} | %{$_.Caption}
 foreach ($caption in $captions) {
 	if ($caption -eq "MSSQLSERVER") {
@@ -246,22 +439,32 @@ foreach ($caption in $captions) {
 	}
 }
 
+#>
+$localInstances = Get-SQLInstance
 # load the SQL SMO assembly
 [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SMO") | Out-Null
 
 foreach ($currInstance in $localInstances) {
 
-    if ($currInstance -eq "MSSQLSERVER")
+    if ($currInstance.isClusterNode)
     {
-	    $serverName = "$SqlServer"
-        $XymonClientName = "$SqlServer-MSSQLSERVER"
-    }
+        $serverName = $currInstance.ClusterName + "\" + $currInstance.SQLInstance
+        $XymonClientName = $currInstance.ClusterName + "-" + $currInstance.SQLInstance
+
+   }
     else
     {
-	    $serverName = "$SqlServer\$currInstance"
-        $XymonClientName = "$SqlServer-$currInstance"
+        if ($currInstance.SQLInstance -eq "MSSQLSERVER")
+        {
+	        $serverName = $currInstance.FullName
+            $XymonClientName = $currInstance.Computername + "-MSSQLSERVER"
+        }
+        else
+        {
+	        $serverName = $currInstance.FullName
+            $XymonClientName = $currInstance.Computername + "-" + $currInstance.SQLInstance
+        }
     }
-
     "Current instance name: " + $serverName
     "Xymon name: " + $XymonClientName
 
@@ -314,8 +517,15 @@ foreach ($currInstance in $localInstances) {
 
     #Get SQL instance Page life expectancy
     $sqlinfo = GetCounterValue "Page life expectancy" | Out-String
+    
 
-    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Page life expectancy</h2> "  + "`n" + 'PageLifeExpectancy: {0}' -f $sqlinfo)
+    $sqlinfoDBPG = GetCounterValue "Database Pages" 
+    $sqlinfoDBPG = 300*($sqlinfoDBPG*8/(1024*1024))
+    
+
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Page life expectancy</h2> "  + "`n" + 'PageLifeExpectancy: {0}' -f $sqlinfo + "`n" + 'PageLifeExpectancyVal {0}' -f $sqlinfoDBPG)
+
+
     	 
     $output = ('status {0}.PageLifeExpectancy {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
     "Output string for Xymon: " + $output
@@ -364,22 +574,22 @@ foreach ($currInstance in $localInstances) {
     if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
     #Get SQL instance Free pages
-    #$sqlinfo = GetCounterValue "Free pages" | Out-String
+    $sqlinfo = GetCounterValue "Free pages" | Out-String
 
-    #$outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Free pages</h2> "  + "`n" + 'FreePages: {0}' -f $sqlinfo)
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Free pages</h2> "  + "`n" + 'FreePages: {0}' -f $sqlinfo)
     	 
-    #$output = ('status {0}.FreePages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
-    #"Output string for Xymon: " + $output
-    #if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+    $output = ('status {0}.FreePages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
     #Get SQL instance Stolen pages
-    #$sqlinfo = GetCounterValue "Stolen pages" | Out-String
+    $sqlinfo = GetCounterValue "Stolen pages" | Out-String
 
-    #$outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Stolen pages</h2> "  + "`n" + 'StolenPages: {0}' -f $sqlinfo)
+    $outputtext = ((get-date -format G) + "`n" + "<h2>MS SQL instance Stolen pages</h2> "  + "`n" + 'StolenPages: {0}' -f $sqlinfo)
     	 
-    #$output = ('status {0}.StolenPages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
-    #"Output string for Xymon: " + $output
-    #if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+    $output = ('status {0}.StolenPages {1} {2}' -f $XymonClientName, $alertColour, $outputtext)
+    "Output string for Xymon: " + $output
+    if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 
     #Get Memory Grants Pending
     $sqlinfo = GetCounterValue "Memory Grants Pending" | Out-String
