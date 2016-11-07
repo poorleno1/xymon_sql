@@ -26,6 +26,9 @@
 # Added function Get-SQLInstance - used to discover instances, especially on cluster.
 # Added information about date when backup was taken
 
+#Last update: 07.11.2016
+# Modified function Get-SQLInstance - used to discover instances, especially on cluster.
+
  param (
     [string]$xymon_server = "xymon.statoilfuelretail.com"
  )
@@ -141,6 +144,15 @@ Function Get-SQLInstance {  
                 } ElseIf ($regKey.GetValueNames() -contains 'InstalledInstances') {
                     $isCluster = $False
                     $instances = $regKey.GetValue('InstalledInstances')
+                } ElseIf ($regKey.GetSubKeyNames() -contains "SQLEXPRESS") {
+                    $instances = @()
+                    $instances1 = @($regKey.GetSubKeyNames())
+                    $instances1 | ForEach-Object {
+                    Write-host "Found values: $_"
+                    if ($_ -like 'SQL*') { $instances += $_ }
+                    #ForEach ($inst in $instances) {
+                    #if ($inst -like 'SQL*') { $instances += $inst }
+                    }
                 } Else {
                     Continue
                 }
@@ -694,6 +706,9 @@ foreach ($currInstance in $localInstances) {
     $memory_result = $db.ExecuteWithResults($memory_sql)
     $memory_table = $memory_result.Tables[0]
 
+if($memory_table) {
+
+    #Write-host "Object exists."
     foreach ($memory_row in $memory_table)
     {
         "DB name  : " + $memory_row.db_name
@@ -715,6 +730,11 @@ foreach ($currInstance in $localInstances) {
     }
 
 
+   } else {
+   Write-host " "
+   }
+    if($dbs) {
+    Write-host "There are user databases. Looping throught them."
     # Loop through all databases
     foreach ($db in $dbs)
     {
@@ -822,21 +842,35 @@ foreach ($currInstance in $localInstances) {
 		$LastDifferentialBackupDate = $db.LastDifferentialBackupDate
 		$LastLogBackupDate = $db.LastLogBackupDate
 		
-		
-		
-		
-		
 		$outputtext = ((get-date -format G) + "`n" + "<h2>DB Backup information</h2> " + "`n" + 'RecoveryModel: {0}' -f $model + "`n" + 'LastBackupDate: {0}' -f $db.LastBackupDate + "`n" + 'LastDifferentialBackupDate: {0}' -f $db.LastDifferentialBackupDate+ "`n" + 'LastLogBackupDate: {0}' -f $db.LastLogBackupDate)
 
         $output = ('status {0}.Backup {1} {2}' -f $XymonClientNameDB, $alertColour, $outputtext)
         "Output string for Xymon: " + $output
         if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
 		
+		#Get DB status
+		
+		$status = $db.Status
+		
+		$outputtext = ((get-date -format G) + "`n" + "<h2>DB Backup information</h2> " + "`n" + 'Database Status: {0}' -f $status)
+		
+		if ($status -eq "Normal" -or $status -eq "Restoring")  {$alertColour = "green"} else {$alertColour = "yellow"}
+
+#		+ "`n" + 'LastBackupDate: {0}' -f $db.LastBackupDate + "`n" + 'LastDifferentialBackupDate: {0}' -f $db.LastDifferentialBackupDate+ "`n" + 'LastLogBackupDate: {0}' -f $db.LastLogBackupDate)
+
+        $output = ('status {0}.Status {1} {2}' -f $XymonClientNameDB, $alertColour, $outputtext)
+        "Output string for Xymon: " + $output
+        if ($XymonReady -eq 1) { XymonSend $output $xymon_server }
+		$alertColour = 'green'
+		
 		
     }
 
-}
 
+
+} else {Write-host "There are no user databases."}
+} 
+Write-Host "End."
 <#
 
 # Load Smo and referenced assemblies.
